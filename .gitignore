@@ -34,3 +34,6 @@ htmlcov/
 output/
 input/
 *.npy
+scripts/
+tests/
+test_output/

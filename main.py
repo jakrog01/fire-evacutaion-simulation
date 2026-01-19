@@ -1,10 +1,9 @@
-from config import load_simulation_config
-from fire_evac_sim import GridGenerator
+from src import GridGenerator
+from tests.test_fire_simulation import test
 
 
 def main():
-    sim_config = load_simulation_config()
-    grid = GridGenerator("stationnc.json", sim_config=sim_config)
+    grid = GridGenerator("stationnc.json")
     print("Generating architecture maps...")
     grid.generate_maps()
     print("Generating potential fields...")
@@ -25,15 +24,9 @@ def main():
     print(f"Fire blocking shape: {fire_maps.fire_blocking.shape}")
     print(f"Ignition temperature: {grid.config.ignition_temperature}°C")
 
-    if grid.config.ignition_point:
-        print(f"Ignition point: {grid.config.ignition_point}")
-
-    max_temp = fire_maps.fire_blocking.max()
-    if max_temp > 100:
-        print(f"Max initial temperature: {max_temp}°C (fire ignited)")
-    else:
-        print("Warning: No ignition point detected in fire matrix")
-
+    if grid.config.ignition_temperature:
+        print(f"Ignition point: {grid.config.ignition_temperature}")
+    test()
 
 if __name__ == "__main__":
     main()
