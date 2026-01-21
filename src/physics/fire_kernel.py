@@ -1,32 +1,76 @@
 from math import exp
 
+import numpy as np
 from numba import float32, njit
 
 from src.config.constants import (
     COOLING_C2,
     COOLING_TAU,
-    EX_MAX,
-    EX_MIN,
     VENT_C2,
     VENT_TAU,
+    SimulationConstants,
 )
-from src.config.fire_constants import ENERGY_TO_TEMPERATURE, get_after_burn
-
-from ..config import (
+from src.config.fire_constants import (
     CONVECTION_RATE,
+    ENERGY_TO_TEMPERATURE,
     FUEL_CONSUMPTION_RATIO,
     FUEL_POWER_MAX,
+    FUEL_POWER_MIN,
+    HEAT_NONLINEARITY_EXPONENT,
     RADIATION_DOWN_RATE,
+    REACH_FALLOFF_EXPONENT,
     VERTICAL_TRANSFER_THRESHOLD,
     WALL_SYNC_RATE,
-    SimulationConstants,
-    compute_reach_falloff,
-    get_diffusion_rate,
-    get_fuel_capacity,
-    get_heat_rate,
-    get_ignition_temperature,
-    get_reach_radius,
+    compute_reach_falloff_param,
+    get_after_burn_param,
+    get_diffusion_rate_param,
+    get_fuel_capacity_param,
+    get_heat_rate_param,
+    get_ignition_temperature_param,
+    get_reach_radius_param,
+    make_default_tables,
 )
+
+P_ENERGY_TO_TEMPERATURE = 0
+P_FUEL_POWER_MIN = 1
+P_FUEL_POWER_MAX = 2
+P_VERTICAL_TRANSFER_THRESHOLD = 3
+P_WALL_SYNC_RATE = 4
+P_CONVECTION_RATE = 5
+P_RADIATION_DOWN_RATE = 6
+P_FUEL_CONSUMPTION_RATIO = 7
+P_HEAT_NONLINEARITY_EXPONENT = 8
+P_REACH_FALLOFF_EXPONENT = 9
+P_EX_MIN = 10
+P_EX_MAX = 11
+P_HRR_SCALE = 12
+P_IGNITION_SHIFT = 13
+P_REACH_SCALE = 14
+P_DIFFUSION_SCALE = 15
+
+
+def make_default_params(ex_min: float = 0.2, ex_max: float = 2.0) -> np.ndarray:
+    return np.array(
+        [
+            ENERGY_TO_TEMPERATURE,
+            FUEL_POWER_MIN,
+            FUEL_POWER_MAX,
+            VERTICAL_TRANSFER_THRESHOLD,
+            WALL_SYNC_RATE,
+            CONVECTION_RATE,
+            RADIATION_DOWN_RATE,
+            FUEL_CONSUMPTION_RATIO,
+            HEAT_NONLINEARITY_EXPONENT,
+            REACH_FALLOFF_EXPONENT,
+            ex_min,
+            ex_max,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+        ],
+        dtype=np.float32,
+    )
 
 
 @njit(fastmath=True, cache=True)
@@ -79,12 +123,26 @@ def is_line_blocked(y0, x0, y1, x1, nav, fuel_power_map, H, W, wall_code, void_c
 
 
 @njit(fastmath=True, cache=True)
-def apply_preheat_damage(temperature, fuel_power, fuel_remaining, dt):
+def apply_preheat_damage(
+    temperature,
+    fuel_power,
+    fuel_remaining,
+    dt,
+    params,
+    ign_table,
+    cap_table,
+):
     if fuel_power <= 0.0:
         return fuel_remaining
 
-    ignition_temp = get_ignition_temperature(fuel_power)
-    cap = get_fuel_capacity(fuel_power)
+    fp_min = params[P_FUEL_POWER_MIN]
+    fp_max = params[P_FUEL_POWER_MAX]
+    ign_shift = params[P_IGNITION_SHIFT]
+
+    ignition_temp = get_ignition_temperature_param(
+        fuel_power, ign_table, fp_min, fp_max, ign_shift
+    )
+    cap = get_fuel_capacity_param(fuel_power, cap_table, fp_min, fp_max)
 
     if fuel_remaining < cap:
         return fuel_remaining
@@ -107,7 +165,7 @@ def apply_preheat_damage(temperature, fuel_power, fuel_remaining, dt):
     if t > 1.0:
         t = 1.0
 
-    rate = 0.15 * (fuel_power / FUEL_POWER_MAX) * (fuel_power / FUEL_POWER_MAX)
+    rate = 0.15 * (fuel_power / fp_max) * (fuel_power / fp_max)
     dmg = cap * rate * t * dt
 
     new_rem = fuel_remaining - dmg
@@ -117,12 +175,31 @@ def apply_preheat_damage(temperature, fuel_power, fuel_remaining, dt):
 
 
 @njit(fastmath=True, cache=True)
-def compute_cell_heat_generation(temperature, fuel_power, fuel_remaining, dt):
+def compute_cell_heat_generation(
+    temperature,
+    fuel_power,
+    fuel_remaining,
+    dt,
+    params,
+    ign_table,
+    heat_table,
+    cap_table,
+):
     if fuel_power <= 0.0:
         return 0.0
 
-    ignition_temp = get_ignition_temperature(fuel_power)
-    cap = get_fuel_capacity(fuel_power)
+    fp_min = params[P_FUEL_POWER_MIN]
+    fp_max = params[P_FUEL_POWER_MAX]
+    ign_shift = params[P_IGNITION_SHIFT]
+    heat_nl = params[P_HEAT_NONLINEARITY_EXPONENT]
+    ex_min = params[P_EX_MIN]
+    ex_max = params[P_EX_MAX]
+    hrr_scale = params[P_HRR_SCALE]
+
+    ignition_temp = get_ignition_temperature_param(
+        fuel_power, ign_table, fp_min, fp_max, ign_shift
+    )
+    cap = get_fuel_capacity_param(fuel_power, cap_table, fp_min, fp_max)
 
     burned_already = fuel_remaining < cap
 
@@ -133,7 +210,10 @@ def compute_cell_heat_generation(temperature, fuel_power, fuel_remaining, dt):
     if temperature < threshold:
         return 0.0
 
-    heat_rate = get_heat_rate(fuel_power)
+    heat_rate = get_heat_rate_param(
+        fuel_power, heat_table, fp_min, fp_max, heat_nl, hrr_scale
+    )
+
     if temperature < ignition_temp:
         if burned_already:
             span = ignition_temp - hold_temp
@@ -145,14 +225,19 @@ def compute_cell_heat_generation(temperature, fuel_power, fuel_remaining, dt):
                     t = 0.0
                 if t > 1.0:
                     t = 1.0
-                excess_factor = max(EX_MIN, t)
+                excess_factor = ex_min if t < ex_min else t
         else:
-            excess_factor = EX_MIN
+            excess_factor = ex_min
     else:
-        excess_factor = max(EX_MIN, min(EX_MAX, (temperature - ignition_temp) / 100.0))
+        val = (temperature - ignition_temp) / 100.0
+        if val < ex_min:
+            val = ex_min
+        if val > ex_max:
+            val = ex_max
+        excess_factor = val
 
-    if excess_factor < EX_MIN:
-        excess_factor = EX_MIN
+    if excess_factor < ex_min:
+        excess_factor = ex_min
 
     return heat_rate * excess_factor * dt
 
@@ -170,13 +255,19 @@ def apply_radiative_heat(
     W,
     wall_code,
     void_code,
-) -> None:
-    reach = get_reach_radius(fuel_power)
+    params,
+    reach_table,
+):
+    fp_min = params[P_FUEL_POWER_MIN]
+    fp_max = params[P_FUEL_POWER_MAX]
+    reach_scale = params[P_REACH_SCALE]
+    falloff_exp = params[P_REACH_FALLOFF_EXPONENT]
+
+    reach = get_reach_radius_param(fuel_power, reach_table, fp_min, fp_max, reach_scale)
 
     heat_delta[y, x] += heat_generated
 
     distributed_heat = heat_generated * 0.35
-
     total_weight = 0.0
 
     for dy in range(-reach, reach + 1):
@@ -202,7 +293,7 @@ def apply_radiative_heat(
             if dist > reach:
                 continue
 
-            falloff = compute_reach_falloff(dist, reach)
+            falloff = compute_reach_falloff_param(dist, reach, falloff_exp)
             inv_sq = 1.0 / (1.0 + dist * dist)
             weight = falloff * inv_sq
             total_weight += weight
@@ -235,7 +326,7 @@ def apply_radiative_heat(
             if dist > reach:
                 continue
 
-            falloff = compute_reach_falloff(dist, reach)
+            falloff = compute_reach_falloff_param(dist, reach, falloff_exp)
             inv_sq = 1.0 / (1.0 + dist * dist)
             weight = falloff * inv_sq
             neighbor_heat = distributed_heat * (weight / total_weight)
@@ -254,12 +345,19 @@ def compute_diffusion_heat(
     dt,
     wall_code,
     void_code,
+    params,
+    diff_table,
 ):
     if is_void_cell(nav[y, x], void_code):
         return 0.0
 
     center_temp = temperature[y, x]
     center_fp = fuel_power[y, x]
+
+    fp_min = params[P_FUEL_POWER_MIN]
+    fp_max = params[P_FUEL_POWER_MAX]
+    diff_scale = params[P_DIFFUSION_SCALE]
+    energy_to_temp = params[P_ENERGY_TO_TEMPERATURE]
 
     total_delta = float32(0.0)
 
@@ -279,11 +377,16 @@ def compute_diffusion_heat(
         neighbor_fp = fuel_power[ny, nx]
         temp_diff = neighbor_temp - center_temp
 
-        diffusion_rate = 0.5 * (
-            get_diffusion_rate(center_fp) + get_diffusion_rate(neighbor_fp)
+        dr0 = get_diffusion_rate_param(
+            center_fp, diff_table, fp_min, fp_max, diff_scale
         )
+        dr1 = get_diffusion_rate_param(
+            neighbor_fp, diff_table, fp_min, fp_max, diff_scale
+        )
+        diffusion_rate = 0.5 * (dr0 + dr1)
+
         heat_flow = temp_diff * diffusion_rate * dt
-        energy_flow = heat_flow / ENERGY_TO_TEMPERATURE
+        energy_flow = heat_flow / energy_to_temp
         total_delta += energy_flow
 
     return total_delta
@@ -303,19 +406,31 @@ def has_void_neighbor(nav, y, x, H, W, void_code):
 
 
 @njit(fastmath=True, cache=True)
-def _consume_fuel_cell(temp_grid, fuel_power_grid, fuel_remaining_grid, y, x, heat_gen):
+def _consume_fuel_cell(
+    fuel_power_grid,
+    fuel_remaining_grid,
+    y,
+    x,
+    heat_gen,
+    params,
+    after_burn_discrete,
+    cap_table,
+):
+    fp_min = params[P_FUEL_POWER_MIN]
+    fp_max = params[P_FUEL_POWER_MAX]
+    consume_ratio = params[P_FUEL_CONSUMPTION_RATIO]
 
     fp = fuel_power_grid[y, x]
-    consumed = heat_gen * FUEL_CONSUMPTION_RATIO * (1.0 + fp / FUEL_POWER_MAX)
+    consumed = heat_gen * consume_ratio * (1.0 + fp / fp_max)
     rem = fuel_remaining_grid[y, x] - consumed
 
     if rem <= 0.0:
-        new_fp = get_after_burn(fp)
+        new_fp = get_after_burn_param(fp, after_burn_discrete, fp_min, fp_max)
         if new_fp > fp:
             new_fp = fp
 
         fuel_power_grid[y, x] = new_fp
-        cap = get_fuel_capacity(new_fp)
+        cap = get_fuel_capacity_param(new_fp, cap_table, fp_min, fp_max)
         new_rem = cap + rem
 
         if new_fp <= 0.0 or new_rem <= 0.0:
@@ -343,12 +458,21 @@ def _process_layer_cell(
     dt,
     wall_code,
     void_code,
+    params,
+    ign_table,
+    heat_table,
+    cap_table,
+    reach_table,
+    after_burn_discrete,
 ):
     fuel_remaining_grid[y, x] = apply_preheat_damage(
         temp_grid[y, x],
         fuel_power_grid[y, x],
         fuel_remaining_grid[y, x],
         dt,
+        params,
+        ign_table,
+        cap_table,
     )
 
     heat_gen = compute_cell_heat_generation(
@@ -356,6 +480,10 @@ def _process_layer_cell(
         fuel_power_grid[y, x],
         fuel_remaining_grid[y, x],
         dt,
+        params,
+        ign_table,
+        heat_table,
+        cap_table,
     )
 
     if heat_gen > 0.0:
@@ -372,9 +500,20 @@ def _process_layer_cell(
             W,
             wall_code,
             void_code,
+            params,
+            reach_table,
         )
 
-    _consume_fuel_cell(temp_grid, fuel_power_grid, fuel_remaining_grid, y, x, heat_gen)
+    _consume_fuel_cell(
+        fuel_power_grid,
+        fuel_remaining_grid,
+        y,
+        x,
+        heat_gen,
+        params,
+        after_burn_discrete,
+        cap_table,
+    )
 
 
 @njit(fastmath=True, cache=True)
@@ -389,6 +528,7 @@ def compute_vertical_transfer(
     dt,
     wall_code,
     void_code,
+    params,
 ):
     nav_val = nav[y, x]
     floor_temp = temp_floor[y, x]
@@ -399,27 +539,33 @@ def compute_vertical_transfer(
         (fuel_floor[y, x] > 0.0) or (fuel_ceil[y, x] > 0.0)
     )
 
+    energy_to_temp = params[P_ENERGY_TO_TEMPERATURE]
+    wall_sync = params[P_WALL_SYNC_RATE]
+    vertical_thr = params[P_VERTICAL_TRANSFER_THRESHOLD]
+    conv_rate = params[P_CONVECTION_RATE]
+    rad_down = params[P_RADIATION_DOWN_RATE]
+
     if wall_active:
         avg_temp = (floor_temp + ceil_temp) * 0.5
-        sync_amount = WALL_SYNC_RATE * dt
+        sync_amount = wall_sync * dt
 
         d_floor = (avg_temp - floor_temp) * sync_amount
         d_ceil = (avg_temp - ceil_temp) * sync_amount
 
-        return (d_floor / ENERGY_TO_TEMPERATURE, d_ceil / ENERGY_TO_TEMPERATURE)
+        return (d_floor / energy_to_temp, d_ceil / energy_to_temp)
 
-    k = temp_diff / (temp_diff + VERTICAL_TRANSFER_THRESHOLD)
+    k = temp_diff / (temp_diff + vertical_thr)
 
     if floor_temp > ceil_temp:
-        transfer = (floor_temp - ceil_temp) * CONVECTION_RATE * dt * k
+        transfer = (floor_temp - ceil_temp) * conv_rate * dt * k
         d_floor = -transfer
         d_ceil = transfer
     else:
-        transfer = (ceil_temp - floor_temp) * RADIATION_DOWN_RATE * dt * k
+        transfer = (ceil_temp - floor_temp) * rad_down * dt * k
         d_floor = transfer
         d_ceil = -transfer
 
-    return (d_floor / ENERGY_TO_TEMPERATURE, d_ceil / ENERGY_TO_TEMPERATURE)
+    return (d_floor / energy_to_temp, d_ceil / energy_to_temp)
 
 
 @njit(fastmath=True, cache=True)
@@ -435,6 +581,8 @@ def update_fire_kernel(
     burn_energy_floor,
     burn_energy_ceil,
     nav,
+    params,
+    tables,
     dt=SimulationConstants.DT,
     burn_tau=0.0,
     wall_code=SimulationConstants.WALL_NAV_CODE,
@@ -442,6 +590,10 @@ def update_fire_kernel(
     ambient_temp=SimulationConstants.AMBIENT_TEMPERATURE,
     max_temp=SimulationConstants.MAX_TEMPERATURE,
 ) -> tuple:
+    ign_table, heat_table, diff_table, reach_table, cap_table, after_burn_discrete = (
+        tables
+    )
+
     H, W = temp_floor.shape
 
     decay = 1.0
@@ -471,6 +623,12 @@ def update_fire_kernel(
                 dt,
                 wall_code,
                 void_code,
+                params,
+                ign_table,
+                heat_table,
+                cap_table,
+                reach_table,
+                after_burn_discrete,
             )
 
     for y in range(H):
@@ -493,6 +651,12 @@ def update_fire_kernel(
                 dt,
                 wall_code,
                 void_code,
+                params,
+                ign_table,
+                heat_table,
+                cap_table,
+                reach_table,
+                after_burn_discrete,
             )
 
     for y in range(H):
@@ -501,12 +665,34 @@ def update_fire_kernel(
                 continue
 
             diff_floor = compute_diffusion_heat(
-                y, x, temp_floor, fuel_floor, nav, H, W, dt, wall_code, void_code
+                y,
+                x,
+                temp_floor,
+                fuel_floor,
+                nav,
+                H,
+                W,
+                dt,
+                wall_code,
+                void_code,
+                params,
+                diff_table,
             )
             heat_delta_floor[y, x] += diff_floor
 
             diff_ceil = compute_diffusion_heat(
-                y, x, temp_ceil, fuel_ceil, nav, H, W, dt, wall_code, void_code
+                y,
+                x,
+                temp_ceil,
+                fuel_ceil,
+                nav,
+                H,
+                W,
+                dt,
+                wall_code,
+                void_code,
+                params,
+                diff_table,
             )
             heat_delta_ceil[y, x] += diff_ceil
 
@@ -526,17 +712,29 @@ def update_fire_kernel(
                 dt,
                 wall_code,
                 void_code,
+                params,
             )
             heat_delta_floor[y, x] += dE_floor
             heat_delta_ceil[y, x] += dE_ceil
+
+    fp_min = params[P_FUEL_POWER_MIN]
+    fp_max = params[P_FUEL_POWER_MAX]
+    energy_to_temp = params[P_ENERGY_TO_TEMPERATURE]
+    heat_nl = params[P_HEAT_NONLINEARITY_EXPONENT]
+    hrr_scale = params[P_HRR_SCALE]
 
     for y in range(H):
         for x in range(W):
             if is_void_cell(nav[y, x], void_code):
                 continue
 
-            cap_dt_floor = max(1.0, get_heat_rate(fuel_floor[y, x])) * 2.0 * dt
-            dT_floor = heat_delta_floor[y, x] * ENERGY_TO_TEMPERATURE
+            fp_f = fuel_floor[y, x]
+            hr_f = get_heat_rate_param(
+                fp_f, heat_table, fp_min, fp_max, heat_nl, hrr_scale
+            )
+            cap_dt_floor = max(1.0, hr_f) * 2.0 * dt
+
+            dT_floor = heat_delta_floor[y, x] * energy_to_temp
             if dT_floor > cap_dt_floor:
                 dT_floor = cap_dt_floor
             elif dT_floor < -cap_dt_floor:
@@ -544,8 +742,13 @@ def update_fire_kernel(
 
             t_floor = temp_floor[y, x] + dT_floor
 
-            cap_dt_ceil = max(1.0, get_heat_rate(fuel_ceil[y, x])) * 2.0 * dt
-            dT_ceil = heat_delta_ceil[y, x] * ENERGY_TO_TEMPERATURE
+            fp_c = fuel_ceil[y, x]
+            hr_c = get_heat_rate_param(
+                fp_c, heat_table, fp_min, fp_max, heat_nl, hrr_scale
+            )
+            cap_dt_ceil = max(1.0, hr_c) * 2.0 * dt
+
+            dT_ceil = heat_delta_ceil[y, x] * energy_to_temp
             if dT_ceil > cap_dt_ceil:
                 dT_ceil = cap_dt_ceil
             elif dT_ceil < -cap_dt_ceil:
@@ -558,7 +761,6 @@ def update_fire_kernel(
                 if has_void_neighbor(nav, y, x, H, W, void_code)
                 else COOLING_TAU
             )
-
             c2 = VENT_C2 if tau == VENT_TAU else COOLING_C2
 
             t_floor += (ambient_temp - t_floor) * (dt / tau)
@@ -593,3 +795,11 @@ def update_fire_kernel(
         fuel_remaining_floor,
         fuel_remaining_ceil,
     )
+
+
+def update_fire_kernel_default(
+    *args, ex_min: float = 0.2, ex_max: float = 2.0, **kwargs
+):
+    params = make_default_params(ex_min=ex_min, ex_max=ex_max)
+    tables = make_default_tables()
+    return update_fire_kernel(*args, params=params, tables=tables, **kwargs)

@@ -210,3 +210,97 @@ def map_fuel_capacity_grid(fuel_power):
         for x in range(W):
             out[y, x] = get_fuel_capacity(fuel_power[y, x])
     return out
+
+
+@njit(fastmath=True, cache=True)
+def _lookup_param(fuel_power, table, fp_min, fp_max):
+    if fuel_power <= fp_min:
+        return table[0]
+    if fuel_power >= fp_max:
+        return table[-1]
+
+    idx = int(fuel_power - fp_min)
+    max_idx = len(table) - 1
+    if idx >= max_idx:
+        return table[max_idx]
+
+    base = idx + fp_min
+    t = fuel_power - base
+    val_a = table[idx]
+    val_b = table[idx + 1]
+    return val_a + (val_b - val_a) * t
+
+
+@njit(fastmath=True, cache=True)
+def get_ignition_temperature_param(
+    fuel_power, ign_table, fp_min, fp_max, ignition_shift
+):
+    return _lookup_param(fuel_power, ign_table, fp_min, fp_max) + ignition_shift
+
+
+@njit(fastmath=True, cache=True)
+def get_fuel_capacity_param(fuel_power, cap_table, fp_min, fp_max):
+    return _lookup_param(fuel_power, cap_table, fp_min, fp_max)
+
+
+@njit(fastmath=True, cache=True)
+def get_heat_rate_param(
+    fuel_power, heat_table, fp_min, fp_max, heat_nonlinearity_exp, hrr_scale
+):
+    base = _lookup_param(fuel_power, heat_table, fp_min, fp_max) * hrr_scale
+    if fuel_power > 5.0:
+        boost = ((fuel_power - 5.0) / 5.0) ** heat_nonlinearity_exp
+        return base * (1.0 + boost)
+    return base
+
+
+@njit(fastmath=True, cache=True)
+def get_reach_radius_param(fuel_power, reach_table, fp_min, fp_max, reach_scale):
+    val = _lookup_param(fuel_power, reach_table, fp_min, fp_max)
+    r = int(val * reach_scale + 0.5)
+    if r < 1:
+        r = 1
+    return r
+
+
+@njit(fastmath=True, cache=True)
+def get_diffusion_rate_param(fuel_power, diff_table, fp_min, fp_max, diffusion_scale):
+    return _lookup_param(fuel_power, diff_table, fp_min, fp_max) * diffusion_scale
+
+
+@njit(fastmath=True, cache=True)
+def get_after_burn_param(fuel_power, after_burn_discrete, fp_min, fp_max):
+    fp = int(fuel_power)
+    if fp <= int(fp_min):
+        return np.float32(0.0)
+    if fp >= int(fp_max):
+        fp = int(fp_max)
+    return after_burn_discrete[fp - int(fp_min)]
+
+
+@njit(fastmath=True, cache=True)
+def compute_reach_falloff_param(distance, max_radius, reach_falloff_exponent):
+    if max_radius <= 0.0 or distance >= max_radius:
+        return 0.0
+    if distance <= 0.0:
+        return 1.0
+
+    normalized = distance / max_radius
+    val = (1.0 - normalized) ** reach_falloff_exponent
+
+    if val < 0.0:
+        return 0.0
+    if val > 1.0:
+        return 1.0
+    return val
+
+
+def make_default_tables():
+    return (
+        _IGNITION_TABLE,
+        _HEAT_TABLE,
+        _DIFFUSION_TABLE,
+        _REACH_TABLE,
+        _FUEL_CAPACITY_TABLE,
+        _AFTER_BURN_DISCRETE,
+    )

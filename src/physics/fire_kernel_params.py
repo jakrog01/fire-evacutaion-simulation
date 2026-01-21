@@ -1,0 +1,51 @@
+import numpy as np
+
+P_ENERGY_TO_TEMPERATURE = 0
+P_FUEL_POWER_MIN = 1
+P_FUEL_POWER_MAX = 2
+P_VERTICAL_TRANSFER_THRESHOLD = 3
+P_WALL_SYNC_RATE = 4
+P_CONVECTION_RATE = 5
+P_RADIATION_DOWN_RATE = 6
+P_FUEL_CONSUMPTION_RATIO = 7
+P_HEAT_NONLINEARITY_EXPONENT = 8
+P_REACH_FALLOFF_EXPONENT = 9
+P_HRR_SCALE = 10
+P_IGNITION_SHIFT = 11
+P_REACH_SCALE = 12
+P_DIFFUSION_SCALE = 13
+
+
+def make_default_params():
+    from src.config.fire_constants import (
+        CONVECTION_RATE,
+        ENERGY_TO_TEMPERATURE,
+        FUEL_CONSUMPTION_RATIO,
+        FUEL_POWER_MAX,
+        FUEL_POWER_MIN,
+        HEAT_NONLINEARITY_EXPONENT,
+        RADIATION_DOWN_RATE,
+        REACH_FALLOFF_EXPONENT,
+        VERTICAL_TRANSFER_THRESHOLD,
+        WALL_SYNC_RATE,
+    )
+
+    return np.array(
+        [
+            ENERGY_TO_TEMPERATURE,
+            FUEL_POWER_MIN,
+            FUEL_POWER_MAX,
+            VERTICAL_TRANSFER_THRESHOLD,
+            WALL_SYNC_RATE,
+            CONVECTION_RATE,
+            RADIATION_DOWN_RATE,
+            FUEL_CONSUMPTION_RATIO,
+            HEAT_NONLINEARITY_EXPONENT,
+            REACH_FALLOFF_EXPONENT,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+        ],
+        dtype=np.float32,
+    )
