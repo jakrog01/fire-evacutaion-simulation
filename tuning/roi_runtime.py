@@ -88,3 +88,26 @@ def burn_ratio_for_rois(burn_energy_floor, burn_energy_ceil, rois, threshold):
         active = ((bf + bc) > threshold) & r.mask_bbox
         out[i] = float(active.sum()) / float(r.area_cells)
     return out
+
+
+def fire_ratio_for_rois(fire_mask_floor_u8, fire_mask_ceil_u8, rois):
+    out = np.empty(len(rois), dtype=np.float32)
+    for i, r in enumerate(rois):
+        mf = fire_mask_floor_u8[r.y0 : r.y1, r.x0 : r.x1]
+        mc = fire_mask_ceil_u8[r.y0 : r.y1, r.x0 : r.x1]
+        active = ((mf + mc) > 0) & r.mask_bbox
+        out[i] = float(active.sum()) / float(r.area_cells)
+    return out
+
+
+def fire_ratio_for_rois_separate(fire_mask_floor_u8, fire_mask_ceil_u8, rois):
+    out_f = np.empty(len(rois), dtype=np.float32)
+    out_c = np.empty(len(rois), dtype=np.float32)
+    for i, r in enumerate(rois):
+        mf = fire_mask_floor_u8[r.y0 : r.y1, r.x0 : r.x1]
+        mc = fire_mask_ceil_u8[r.y0 : r.y1, r.x0 : r.x1]
+        af = (mf > 0) & r.mask_bbox
+        ac = (mc > 0) & r.mask_bbox
+        out_f[i] = float(af.sum()) / float(r.area_cells)
+        out_c[i] = float(ac.sum()) / float(r.area_cells)
+    return out_f, out_c

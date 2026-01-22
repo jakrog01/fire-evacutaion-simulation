@@ -2,6 +2,8 @@ from pathlib import Path
 
 import numpy as np
 
+from src.config.fire_constants import map_fuel_capacity_grid_numpy
+
 from ..config import SimulationConstants, map_fuel_capacity_grid
 from .simulation_state import SimulationState
 
@@ -79,7 +81,6 @@ def load_state_from_grids(
         f"Data isolation check: {different_values} cells have different floor/ceil values"
     )
 
-    # Log counts for fuel factors 10 and 11 on floor and ceil
     count_fp10 = int(np.sum(fp_floor == 10.0))
     count_fp11 = int(np.sum(fp_floor == 11.0))
     print(f"Fuel factor counts (floor): fp10={count_fp10}, fp11={count_fp11}")
@@ -97,8 +98,8 @@ def load_state_from_grids(
         ceil_mask = mask & (fp_ceil > 0.0)
         temperature_ceil[ceil_mask] = fire[ceil_mask]
 
-    floor_capacity = map_fuel_capacity_grid(fp_floor)
-    ceil_capacity = map_fuel_capacity_grid(fp_ceil)
+    floor_capacity = map_fuel_capacity_grid_numpy(fp_floor)
+    ceil_capacity = map_fuel_capacity_grid_numpy(fp_ceil)
 
     return SimulationState(
         temperature_floor=temperature_floor,

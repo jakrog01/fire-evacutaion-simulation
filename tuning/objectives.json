@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "roi_expectations": [
+    {
+      "t0": 0.0,
+      "t1": 10.0,
+      "expect": {
+        "ROI_ALCOVE__CEIL": { "mode": "OFF", "max": 0.010, "w": 14.0, "early_w": 3.0 },
+        "ROI_ALCOVE__FLOOR": { "mode": "OFF", "max": 0.010, "w": 10.0, "early_w": 3.0 },
+
+        "ROI_STAGE__CEIL": { "mode": "OFF", "max": 0.005, "w": 8.0, "early_w": 4.0 },
+        "ROI_STAGE__FLOOR": { "mode": "OFF", "max": 0.005, "w": 6.0, "early_w": 4.0 },
+
+        "ROI_DANCE_AND_RAILING__CEIL": { "mode": "OFF", "max": 0.003, "w": 8.0, "early_w": 5.0 },
+        "ROI_DANCE_AND_RAILING__FLOOR": { "mode": "OFF", "max": 0.003, "w": 6.0, "early_w": 5.0 },
+
+        "ROI_MAIN_ROOM__CEIL": { "mode": "OFF", "max": 0.003, "w": 10.0, "early_w": 5.0 },
+        "ROI_MAIN_ROOM__FLOOR": { "mode": "OFF", "max": 0.003, "w": 8.0, "early_w": 5.0 },
+
+        "ROI_EXIT_PASSAGE__CEIL": { "mode": "OFF", "max": 0.001, "w": 30.0, "early_w": 10.0 },
+        "ROI_EXIT_PASSAGE__FLOOR": { "mode": "OFF", "max": 0.001, "w": 24.0, "early_w": 10.0 },
+
+        "ROI_SUNROOM__CEIL": { "mode": "OFF", "max": 0.002, "w": 3.0, "early_w": 3.0 },
+        "ROI_SUNROOM__FLOOR": { "mode": "OFF", "max": 0.002, "w": 3.0, "early_w": 3.0 },
+
+        "ROI_BAR__CEIL": { "mode": "OFF", "max": 0.002, "w": 3.0, "early_w": 3.0 },
+        "ROI_BAR__FLOOR": { "mode": "OFF", "max": 0.002, "w": 3.0, "early_w": 3.0 },
+        "ROI_BAR_FUELS__CEIL": { "mode": "OFF", "max": 0.002, "w": 2.0, "early_w": 3.0 },
+        "ROI_BAR_FUELS__FLOOR": { "mode": "OFF", "max": 0.002, "w": 2.0, "early_w": 3.0 }
+      }
+    },
+
+    {
+      "t0": 10.0,
+      "t1": 25.0,
+      "expect": {
+        "ROI_ALCOVE__CEIL": { "mode": "ON", "min": 0.020, "w": 18.0, "early_w": 3.0 },
+        "ROI_ALCOVE__FLOOR": { "mode": "ON", "min": 0.010, "w": 12.0, "early_w": 3.0 },
+
+        "ROI_STAGE__CEIL": { "mode": "OFF", "max": 0.010, "w": 8.0, "early_w": 4.0 },
+        "ROI_STAGE__FLOOR": { "mode": "OFF", "max": 0.010, "w": 6.0, "early_w": 4.0 },
+
+        "ROI_DANCE_AND_RAILING__CEIL": { "mode": "OFF", "max": 0.010, "w": 8.0, "early_w": 5.0 },
+        "ROI_DANCE_AND_RAILING__FLOOR": { "mode": "OFF", "max": 0.010, "w": 6.0, "early_w": 5.0 },
+
+        "ROI_MAIN_ROOM__CEIL": { "mode": "OFF", "max": 0.010, "w": 10.0, "early_w": 5.0 },
+        "ROI_MAIN_ROOM__FLOOR": { "mode": "OFF", "max": 0.010, "w": 8.0, "early_w": 5.0 },
+
+        "ROI_EXIT_PASSAGE__CEIL": { "mode": "OFF", "max": 0.002, "w": 34.0, "early_w": 11.0 },
+        "ROI_EXIT_PASSAGE__FLOOR": { "mode": "OFF", "max": 0.002, "w": 28.0, "early_w": 11.0 }
+      }
+    },
+
+    {
+      "t0": 25.0,
+      "t1": 50.0,
+      "expect": {
+        "ROI_ALCOVE__CEIL": { "mode": "FULL", "min": 0.28, "w": 18.0, "early_w": 3.0 },
+        "ROI_ALCOVE__FLOOR": { "mode": "ON", "min": 0.03, "w": 12.0, "early_w": 3.0 },
+
+        "ROI_STAGE__CEIL": { "mode": "ON", "min": 0.01, "w": 10.0, "early_w": 4.0 },
+        "ROI_STAGE__FLOOR": { "mode": "OFF", "max": 0.02, "w": 7.0, "early_w": 4.0 },
+
+        "ROI_DANCE_AND_RAILING__CEIL": { "mode": "OFF", "max": 0.02, "w": 10.0, "early_w": 5.0 },
+        "ROI_DANCE_AND_RAILING__FLOOR": { "mode": "OFF", "max": 0.02, "w": 7.0, "early_w": 5.0 },
+
+        "ROI_MAIN_ROOM__CEIL": { "mode": "OFF", "max": 0.02, "w": 12.0, "early_w": 6.0 },
+        "ROI_MAIN_ROOM__FLOOR": { "mode": "OFF", "max": 0.02, "w": 9.0, "early_w": 6.0 },
+
+        "ROI_EXIT_PASSAGE__CEIL": { "mode": "OFF", "max": 0.003, "w": 36.0, "early_w": 12.0 },
+        "ROI_EXIT_PASSAGE__FLOOR": { "mode": "OFF", "max": 0.003, "w": 30.0, "early_w": 12.0 }
+      }
+    },
+
+    {
+      "t0": 50.0,
+      "t1": 60.0,
+      "expect": {
+        "ROI_ALCOVE__CEIL": { "mode": "FULL", "min": 0.30, "w": 14.0, "early_w": 3.0 },
+        "ROI_ALCOVE__FLOOR": { "mode": "FULL", "min": 0.12, "w": 12.0, "early_w": 3.0 },
+
+        "ROI_STAGE__CEIL": { "mode": "ON", "min": 0.02, "w": 10.0, "early_w": 4.0 },
+        "ROI_STAGE__FLOOR": { "mode": "ON", "min": 0.01, "w": 8.0, "early_w": 4.0 },
+
+        "ROI_DANCE_AND_RAILING__CEIL": { "mode": "ON", "min": 0.01, "w": 10.0, "early_w": 5.0 },
+        "ROI_DANCE_AND_RAILING__FLOOR": { "mode": "OFF", "max": 0.03, "w": 7.0, "early_w": 5.0 },
+
+        "ROI_MAIN_ROOM__CEIL": { "mode": "OFF", "max": 0.03, "w": 12.0, "early_w": 6.0 },
+        "ROI_MAIN_ROOM__FLOOR": { "mode": "OFF", "max": 0.03, "w": 9.0, "early_w": 6.0 },
+
+        "ROI_EXIT_PASSAGE__CEIL": { "mode": "OFF", "max": 0.004, "w": 38.0, "early_w": 12.0 },
+        "ROI_EXIT_PASSAGE__FLOOR": { "mode": "OFF", "max": 0.004, "w": 32.0, "early_w": 12.0 }
+      }
+    },
+
+    {
+      "t0": 60.0,
+      "t1": 80.0,
+      "expect": {
+        "ROI_DANCE_AND_RAILING__CEIL": { "mode": "FULL", "min": 0.12, "w": 12.0, "early_w": 5.0 },
+        "ROI_DANCE_AND_RAILING__FLOOR": { "mode": "ON", "min": 0.02, "w": 10.0, "early_w": 5.0 },
+
+        "ROI_MAIN_ROOM__CEIL": { "mode": "ON", "min": 0.01, "w": 16.0, "early_w": 6.0 },
+        "ROI_MAIN_ROOM__FLOOR": { "mode": "OFF", "max": 0.04, "w": 10.0, "early_w": 6.0 },
+
+        "ROI_EXIT_PASSAGE__CEIL": { "mode": "OFF", "max": 0.006, "w": 40.0, "early_w": 12.0 },
+        "ROI_EXIT_PASSAGE__FLOOR": { "mode": "OFF", "max": 0.006, "w": 34.0, "early_w": 12.0 }
+      }
+    },
+
+    {
+      "t0": 80.0,
+      "t1": 100.0,
+      "expect": {
+        "ROI_MAIN_ROOM__CEIL": { "mode": "FULL", "min": 0.10, "w": 18.0, "early_w": 6.0 },
+        "ROI_MAIN_ROOM__FLOOR": { "mode": "ON", "min": 0.03, "w": 14.0, "early_w": 6.0 },
+
+        "ROI_EXIT_PASSAGE__CEIL": { "mode": "ON", "min": 0.01, "w": 48.0, "early_w": 12.0 },
+        "ROI_EXIT_PASSAGE__FLOOR": { "mode": "OFF", "max": 0.05, "w": 38.0, "early_w": 12.0 }
+      }
+    },
+
+    {
+      "t0": 100.0,
+      "t1": 120.0,
+      "expect": {
+        "ROI_EXIT_PASSAGE__CEIL": { "mode": "FULL", "min": 0.15, "w": 60.0, "early_w": 12.0 },
+        "ROI_EXIT_PASSAGE__FLOOR": { "mode": "ON", "min": 0.05, "w": 48.0, "early_w": 12.0 },
+
+        "ROI_MAIN_ROOM__CEIL": { "mode": "FULL", "min": 0.08, "w": 12.0, "early_w": 6.0 },
+        "ROI_MAIN_ROOM__FLOOR": { "mode": "FULL", "min": 0.05, "w": 10.0, "early_w": 6.0 }
+      }
+    }
+  ]
+}

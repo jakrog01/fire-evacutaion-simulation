@@ -304,3 +304,14 @@ def make_default_tables():
         _FUEL_CAPACITY_TABLE,
         _AFTER_BURN_DISCRETE,
     )
+
+
+def map_fuel_capacity_grid_numpy(fuel_power: np.ndarray) -> np.ndarray:
+    fp = fuel_power.astype(np.float32, copy=False)
+    fp_clipped = np.clip(fp, np.float32(FUEL_POWER_MIN), np.float32(FUEL_POWER_MAX))
+    idx0 = np.floor(fp_clipped - np.float32(FUEL_POWER_MIN)).astype(np.int32)
+    idx1 = np.minimum(idx0 + 1, np.int32(TABLE_RESOLUTION - 1))
+    t = fp_clipped - (idx0.astype(np.float32) + np.float32(FUEL_POWER_MIN))
+    a = _FUEL_CAPACITY_TABLE[idx0]
+    b = _FUEL_CAPACITY_TABLE[idx1]
+    return a + (b - a) * t

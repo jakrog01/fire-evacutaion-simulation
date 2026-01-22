@@ -1,6 +1,4 @@
 from src import GridGenerator
-from tests.test_fire_simulation import test
-
 
 def main():
     grid = GridGenerator("stationnc.json")
@@ -26,7 +24,7 @@ def main():
 
     if grid.config.ignition_temperature:
         print(f"Ignition point: {grid.config.ignition_temperature}")
-    test()
+
 
 if __name__ == "__main__":
     main()
